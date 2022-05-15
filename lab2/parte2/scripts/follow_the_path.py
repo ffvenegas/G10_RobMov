@@ -40,7 +40,7 @@ class FollowTheWall(object):
     self.speed_msg = Twist()
 
     # line speed
-    self.speed_msg.linear.x = 0.1
+    self.speed_msg.linear.x = 0.2
 
     # controller topic, in launch "ns = topic"
     self.topic = "robot_ang"
@@ -72,24 +72,32 @@ class FollowTheWall(object):
       img2display = cv2.flip(img2display, 0)
       
       img_y, img_x = img2display.shape[0:2]
-      left_img = img2display[ :, :2*img_x//3 ]
-      right_img = img2display[ :, img_x//3: ]
+      left_img = img2display[ :, :img_x//3 ]
+      right_img = img2display[ :, 2*img_x//3: ]
       
       if self.depth_image_np is not None:
-      	column_sample_left = self.depth_image_np[ :, :img_x//3 ]
-      	column_sample_right = self.depth_image_np[ :, 2*img_x//3: ]
+      	column_sample_left = self.depth_image_np[ :, :2*img_x//3 ]
+      	column_sample_right = self.depth_image_np[ :, img_x//3: ]
 
       	column_sample_left = np.where( np.isnan( column_sample_left ), 0.0, column_sample_left )
       	column_sample_right = np.where( np.isnan( column_sample_right ), 0.0, column_sample_right )
       
       value_left = np.mean(column_sample_left)
       value_right = np.mean(column_sample_right)
-      self.value = abs(value_left - value_right)
-      self.ang_PID_controller.pub_state(self.value)
-      rospy.loginfo(self.value)
+      self.value = value_right - value_left
+      #value_left = np.mean(left_img)
+      #value_right = np.mean(right_img)
+      #if value_right < 2.0: # Muy cerca de pared derecha
+      	#self.value = -15
+      #elif value_left < 2.0:
+      	#self.value = 15
       
-      #cv2.imshow('Depth Sensor', left_img)
-      #cv2.waitKey( 1 )
+      self.ang_PID_controller.pub_state(self.value)
+      #rospy.loginfo(self.value)
+      rospy.loginfo( 'izq: %f | der %f | delta: %f' % ( value_left, value_right, self.value ) )
+      
+      cv2.imshow('Depth Sensor', img2display)
+      cv2.waitKey( 1 )
 
     except CvBridgeError as e:
       rospy.logerr( e )

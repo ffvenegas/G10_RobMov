@@ -4,9 +4,9 @@
   <include file="$(find lab2)/launch/vsrs.launch" />
   <!-- run PID controler node-->
   <node name="ang_ctrl" pkg="pid" type="controller" ns="robot_ang">
-    <param name="Kp" value="0.1" />
-    <param name="Ki" value="0.0" />
-    <param name="Kd" value="0.0" />
+    <param name="Kp" value="1.0" />
+    <param name="Ki" value="0.1" />
+    <param name="Kd" value="0.1" />
     <param name="upper_limit" value="0.2" />
     <param name="lower_limit" value="-0.2" />
   </node>
