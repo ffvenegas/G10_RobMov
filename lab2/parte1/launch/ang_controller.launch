@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- run the simulation: manager-inetic-gui-->
+  <!--<include file="$(find simulador)/launch/vsrs.launch" />-->
+  <!-- run PID controler node-->
+  <node name="ang_ctrl" pkg="pid" type="controller" ns="robot_ang">
+    <param name="Kp" value="0.8" /> 
+    <param name="Ki" value="0.005" /> 
+    <param name="Kd" value="0.0" />
+    <param name="upper_limit" value="0.7" />
+    <param name="lower_limit" value="-0.7" />
+    <param name="angle_error" value="true"/>  <!-- keep the error between pi and -pi-->
+    <param name="angle_wrap" value="2.0*3.14159"/> <!--2.0*180 or 360.0 for degrees -->
+  </node>
+  <!-- run node ang controler-->
+  <node name="ang_controller" pkg="simulador" type="ang_controller.py" output="screen"/>
+  
+  <!-- run grafic control_effort, state, setpoint-->
+  <node name="rqt_plot_ang" pkg="rqt_plot" type="rqt_plot" 
+    args="/robot_ang/control_effort /robot_ang/state /robot_ang/setpoint" />
+  <!-- run for change kp, ki and kd-->
+  <node name="rqt_reconfigure_ang" pkg="rqt_reconfigure" type="rqt_reconfigure"/>
+</launch>

@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- run the simulation: manager-inetic-gui-->
+  <!--<include file="$(find simulador)/launch/vsrs.launch" />-->
+  <!-- run PID controler node-->
+  <node name="pos_ctrl" pkg="pid" type="controller" ns="robot_pos">
+    <param name="Kp" value="0.4" /> 
+    <param name="Ki" value="0.005" /> 
+    <param name="Kd" value="0.0" />
+    <param name="upper_limit" value="0.3" />
+    <param name="lower_limit" value="-0.3" />
+  </node>
+  <!-- run node ang controler-->
+  <node pkg="simulador" name="pos_controller" type="pos_controller.py"  output="screen"/>
+  
+  <!-- run grafic control_effort, state, setpoint-->
+  <node name="rqt_plot_pos" pkg="rqt_plot" type="rqt_plot" 
+    args="/robot_pos/control_effort /robot_pos/state /robot_pos/setpoint" />
+  <!-- run for change kp, ki and kd-->
+  <node name="rqt_reconfigure_pos" pkg="rqt_reconfigure" type="rqt_reconfigure"/>
+</launch>

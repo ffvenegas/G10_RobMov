@@ -1,0 +1,11 @@
+<launch>
+
+  <include file="$(find very_simple_robot_simulator)/launch/run_all.launch" />
+  <include file="$(find simulador)/launch/ang_controller.launch" />
+  <include file="$(find simulador)/launch/pos_controller.launch" />
+
+  <node pkg="simulador" name="avanzar_y_rotar_ctrl" type="avanzar_y_rotar_ctrl.py" output="screen" />
+  <node pkg="simulador" name="lector_de_poses" type="lector_de_poses.py" output="screen" />
+  
+</launch>
+
