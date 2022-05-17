@@ -14,10 +14,10 @@ from tf.transformations import euler_from_quaternion
 from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 
-class FollowTheWall(object):
+class FollowThePath(object):
 
   def __init__(self):
-    rospy.init_node('follow_the_wall')
+    rospy.init_node('follow_the_path')
     self.variables_init()
     self.connections_init()
     rospy.spin()
@@ -26,7 +26,7 @@ class FollowTheWall(object):
 
     # value and goal goal value
     self.value = 0.0
-    self.goal_value = 0.0
+    self.goal_value = 0.001
     
     # last orienantation and delta ang
     self.last_value = 0.0
@@ -72,29 +72,53 @@ class FollowTheWall(object):
       img2display = cv2.flip(img2display, 0)
       
       img_y, img_x = img2display.shape[0:2]
-      left_img = img2display[ :, :img_x//3 ]
-      right_img = img2display[ :, 2*img_x//3: ]
+      left_img = img2display[ :, : (img_x // 3) ]
+      right_img = img2display[ :, (2 * img_x // 3) :  ]
       
       if self.depth_image_np is not None:
-      	column_sample_left = self.depth_image_np[ :, :2*img_x//3 ]
-      	column_sample_right = self.depth_image_np[ :, img_x//3: ]
+      	#column_sample_left = self.depth_image_np[ img_y//2:, : (2 * img_x//3) ]
+      	#column_sample_right = self.depth_image_np[ img_y//2:, (img_x // 3) : ]
+      	
+      	column_sample_left_ext = self.depth_image_np[ :, : ( img_x // 3) ]
+      	column_sample_right_ext = self.depth_image_np[ :, (2 * img_x // 3) : ]
 
-      	column_sample_left = np.where( np.isnan( column_sample_left ), 0.0, column_sample_left )
-      	column_sample_right = np.where( np.isnan( column_sample_right ), 0.0, column_sample_right )
+      	#column_sample_left = np.where( np.isnan( column_sample_left ), 0.0, column_sample_left )
+      	#column_sample_right = np.where( np.isnan( column_sample_right ), 0.0, column_sample_right )
+      	
+      	column_sample_left_ext = np.where( np.isnan( column_sample_left_ext ), 0.0, column_sample_left_ext )
+      	column_sample_right_ext = np.where( np.isnan( column_sample_right_ext ), 0.0, column_sample_right_ext )
       
-      value_left = np.mean(column_sample_left)
-      value_right = np.mean(column_sample_right)
-      self.value = value_right - value_left
-      #value_left = np.mean(left_img)
-      #value_right = np.mean(right_img)
-      #if value_right < 2.0: # Muy cerca de pared derecha
-      	#self.value = -15
-      #elif value_left < 2.0:
-      	#self.value = 15
+      #value_left = np.mean(column_sample_left)
+      #value_right = np.mean(column_sample_right)
+      
+      value_left_ext = np.mean(column_sample_left_ext)
+      value_right_ext = np.mean(column_sample_right_ext)
+      	
+      
+      if value_left_ext < value_right_ext:
+      	if value_left_ext < 2.57:
+      	  value_right_ext = (6.0 - value_left_ext) #* ( value_left_ext / 3.0 )
+      	else:
+      	  value_right_ext = (6.0 - value_left_ext) #* ( value_left_ext / 3.0 )
+      	rospy.loginfo( 'izq_ext: %f | delta: %f' % ( value_left_ext, self.value ) )	  
+      
+      else:
+      	if value_right_ext < 1.71: # muy cerca de chocar con la derecha
+      	  value_left_ext = (6.0 - value_right_ext) #* ( value_right_ext / 3.0 ) # no achicamos
+      	else:
+      	  value_left_ext = (6.0 - value_right_ext) #* ( value_right_ext / 3.0 ) # no achicamos
+      	rospy.loginfo( 'der_ext: %f | delta: %f' % ( value_right_ext, self.value ) )
+      
+      if value_left_ext > 0.1 and value_right_ext > 0.1: # chocar con el borde de la interfaz
+      	self.speed_msg.linear.x = 0.2
+      else:
+      	self.speed_msg.linear.x = 0.0
+      	
+      self.value = value_right_ext - value_left_ext
       
       self.ang_PID_controller.pub_state(self.value)
-      #rospy.loginfo(self.value)
-      rospy.loginfo( 'izq: %f | der %f | delta: %f' % ( value_left, value_right, self.value ) )
+      #rospy.loginfo( 'izq: %f | der %f | delta: %f' % ( value_left, value_right, self.value ) )
+      #rospy.loginfo( 'izq_ext: %f | der_ext %f | delta: %f' % ( value_left_ext, value_right_ext, self.value ) )
       
       cv2.imshow('Depth Sensor', img2display)
       cv2.waitKey( 1 )
@@ -112,5 +136,5 @@ class FollowTheWall(object):
       self.rate_obj.sleep()
 
 if __name__ == '__main__':
-  follow_the_wall = FollowTheWall()
+  follow_the_path = FollowThePath()
   rospy.spin()
