@@ -80,6 +80,7 @@ class MoveTurtlebot( object ):
             
             
     def mover_robot_a_destino_ctrl(self, goal_pose):
+    # callback de tópico /goal_list
         self.last_ang= 0.0
         self.last_pos= 0.0
         id = 1
@@ -106,9 +107,11 @@ class MoveTurtlebot( object ):
         
             # Entregamos los vectores a la función que aplica la velocidad
             if np.abs(yaw_goal - self.yaw) > 0.1:
+            	# si estamos desfasados en ángulo
                 self.giro_controlado(yaw_goal)
                 self.rate_obj.sleep()
             elif np.abs(x_goal - self.x) > 0.1 or np.abs(y_goal - self.y) > 0.1:
+            	# si estamos desfasados en distancia
                 self.desplazamiento_controlado(x_goal, y_goal)
                 self.rate_obj.sleep()
 
@@ -120,10 +123,10 @@ class MoveTurtlebot( object ):
         rospy.loginfo("giro_controlado")
         self.goal_ang = Float64()
         self.goal_ang.data = theta_ref
-        self.delta_ang = self.goal_ang.data - self.yaw
-        self.last_ang = self.yaw
+        #self.delta_ang = self.goal_ang.data - self.yaw
+        #self.last_ang = self.yaw
 
-        self.goal_ang.data = self.goal_ang.data
+        #self.goal_ang.data = self.goal_ang.data
 
         # while erro > 3 degrees and delta_ang > 2 degrees 
         #while abs(self.goal_ang.data - self.last_ang) > np.pi/120 or self.delta_ang > np.pi/180:

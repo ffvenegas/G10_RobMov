@@ -10,51 +10,38 @@ import numpy as np
 import time
 from matplotlib import pyplot as plt 
 
+
 class Follow_Carrot(object):
 
     def __init__(self):
         rospy.init_node('zanahoria_final')
         self.suscribirse()
-        
         self.iniciar()
+
 
     def suscribirse(self): # Se conecta a los nodos
         # Turtlebot connections
+        # Acá publicaremos la velocidad
         self.cmd_vel_mux_pub = rospy.Publisher('/yocs_cmd_vel_mux/input/navigation', Twist, queue_size=10)
 
-        # Conexxion PID
+        # Conexion PID
+        # acá publicaremos el setpoint que lee el nodo de control
         self.objetivo = rospy.Publisher( '/robot_ang/setpoint', Float64, queue_size = 1 )
+        
+        # acá publicaremos el estado que lee el nodo de control
         self.state = rospy.Publisher( '/robot_ang/state', Float64, queue_size = 1 )
+        
+        # acá recibiremos la variable manipulada que publica el nodo de control
         self.recibir_PID = rospy.Subscriber('/robot_ang/control_effort', Float64, self.movimiento)
 
-        #posicion robot
+        # posicion robot
+        # acá leeremos la odometría
         self.recibir_odom = rospy.Subscriber( '/odom', Odometry, self.odometria)
 
-        #Falta suscrbir a qn manda el objetivo
+        # acá recibiremos el setpoint deseado
         self.recibir_objetivos = rospy.Subscriber( '/goal_list', Path, self.destinos)
-
-
-    def movimiento(self, direccion): #Utiliza la suscripcion al controlador para estar moviendose
-        #si no recibe nada del controlador no hace nada
-        cambio = direccion.data
-        speed = Twist()            
-        speed.linear.x = 0.1
-        speed.angular.z = cambio
-        self.cmd_vel_mux_pub.publish(speed)
-
-
-    def destinos(self, targets): #Crea la lista del path
-        if len(self.objetivos) ==0:
-            self.objetivos = []
-            for i in targets.poses:
-                target_x = i.pose.position.x
-                target_y = i.pose.position.y
-                self.objetivos.append([target_x, target_y])
-            self.objetivos_graficos = self.objetivos
-        self.llamar_controlador()
-
-
-
+        
+        
     def iniciar(self): #Inicia valores de la clase
         self.posicion = []
         frecuencia = 10 #0.5
@@ -66,7 +53,7 @@ class Follow_Carrot(object):
         self.zanahoria = -1
         self.error_medio = 0
         self.cuenta_total = 0
-        pass
+
 
     def odometria(self, odom): #Gestiona la recepcion de la odometria
         x = odom.pose.pose.position.x
@@ -79,25 +66,53 @@ class Follow_Carrot(object):
         self.posicion.append([x+1, y+1, yaw])
 
 
-    def llamar_controlador(self): 
+    def movimiento(self, direccion): #Utiliza la suscripcion al controlador para estar moviendose
+        # si no recibe nada del controlador no hace nada
+        # callback de recepción de variable manipulada
+        cambio = direccion.data
+        speed = Twist()            
+        speed.linear.x = 0.1                # velocidad lineal la dejamos fija
+        speed.angular.z = cambio            # velocidad angular la recibimos del nodo de control
+        self.cmd_vel_mux_pub.publish(speed) # publicamos la velocidad al vel_mux
+
+
+    def destinos(self, targets): # Crea la lista del path
+    	# callback de recepción de trayetorias desde el nodo lector de paths
+        if len(self.objetivos) ==0:
+            self.objetivos = []
+            for i in targets.poses:
+                target_x = i.pose.position.x
+                target_y = i.pose.position.y
+                self.objetivos.append([target_x, target_y])
+            self.objetivos_graficos = self.objetivos
+        self.llamar_controlador()
+
+
+    def llamar_controlador(self):
+        # se llama una vez leido los paths objetivos
         while not rospy.is_shutdown():
             distancia_objetivo = self.calcular_distancia(self.posicion[-1], self.objetivos[-1])
-            if distancia_objetivo>0.2: #Llama al controlador y las funciones necesarias si la distancia es mayor a 0.2
+            if distancia_objetivo > 0.2: # Llama al controlador y las funciones necesarias si la distancia es mayor a 0.2
                 self.rate_obj.sleep()
                 self.actualizar_contador()
+                
                 self.angulo_objetivo = self.calcular_diferencia_angular()
-                angulo_actual = self.posicion[-1][2]
-                self.objetivo.publish(self.angulo_objetivo) #angulo_objetivo*180/np.pi 
+                self.objetivo.publish(self.angulo_objetivo) #angulo_objetivo*180/np.pi
+                
+                angulo_actual = self.posicion[-1][2] 
                 self.diferencia_angular = self.angulo_objetivo - angulo_actual
                 self.state.publish(angulo_actual)
+                
                 #print(angulo_actual, self.angulo_objetivo, 'angulos87')
             else: #Osino llama al grafico
                 self.graficar()
             
 
-    def actualizar_contador(self): #Llama a funciones q buscan carrot point y punto minimo
+    def actualizar_contador(self): #Llama a funciones que buscan carrot point y punto minimo
+        # se llama por el controlador cuando la distancia al carrot aun es grande
+        # busca posición actual, su distancia mínima al objetivo y ajusta el carrot
         posicion_actual = self.posicion[-1]
-        punto_minimo, location = self.encontrar_minimo(posicion_actual)
+        punto_minimo, location = self.encontrar_minimo( posicion_actual )
         zanahoria = self.zanahoria
         self.zanahoria = self.encontrar_zanahoria(punto_minimo, location)
         #if zanahoria != self.zanahoria:
@@ -105,11 +120,12 @@ class Follow_Carrot(object):
             #print(punto_minimo)
        
 
-    def calcular_distancia(self, puntoA, puntoB): #Funcion para calcular distancia entre puntos
+    def calcular_distancia(self, puntoA, puntoB): # Funcion para calcular distancia entre puntos
         distancia = ((puntoA[0]-puntoB[0])**2+ (puntoA[1]-puntoB[1])**2)**0.5
         return distancia
 
-    def encontrar_minimo(self, post): #Encuentra la minima distancia entre el path y el robot y su ubicacion
+
+    def encontrar_minimo(self, post): # Encuentra la minima distancia entre el path y el robot y su ubicacion
         minimo = 1000
         punto_min = -1
         for i in range(len(self.objetivos)-1):
@@ -138,35 +154,44 @@ class Follow_Carrot(object):
         return punto_min, ubicacion
         
 
-    def encontrar_zanahoria(self, punto, ubicacion): #Encuentra la zanahoria
+    def encontrar_zanahoria(self, punto, ubicacion): #Encuentra la posición de la zanahoria
         diferencia = 0.5 #0.7
         distancia = 0
         coordenadas_zanahoria = [0, 0]
+        
         for i in range(ubicacion, len(self.objetivos)-1):
+        
             if distancia<diferencia:
                 #print(distancia, coordenadas_zanahoria, self.objetivos[i], i)
                 coordenadas_zanahoria[0] = coordenadas_zanahoria[0]-self.objetivos[i][0]+self.objetivos[i+1][0]
                 coordenadas_zanahoria[1] = coordenadas_zanahoria[1]-self.objetivos[i][1]+self.objetivos[i+1][1]
                 distancia = self.calcular_distancia(coordenadas_zanahoria, [0, 0])
                 final = i
+                
                 if distancia > diferencia:
                     #tamano = self.calcular_distancia(coordenadas_zanahoria, punto)
                     coordenadas_zanahoria[0] = diferencia*coordenadas_zanahoria[0]/distancia+punto[0]
                     coordenadas_zanahoria[1] = diferencia*coordenadas_zanahoria[1]/distancia+punto[1]
+                    
         distancia_fin = self.calcular_distancia(self.objetivos[len(self.objetivos)-1], punto)
-        if ubicacion>5:
+        
+        if ubicacion > 5:
             self.objetivos = self.objetivos[5:]
         else:
             self.objetivos = self.objetivos[ubicacion:]
+            
         if distancia_fin< diferencia:
             coordenadas_zanahoria = self.objetivos[len(self.objetivos)-1]
+            
         return coordenadas_zanahoria
+        
         
     def calcular_diferencia_angular(self): #Calcula angulo para control PID
         posicion_actual = self.posicion[-1]
         objetivo_actual = self.zanahoria
         x_obj = objetivo_actual[0] - posicion_actual[0]
         y_obj = objetivo_actual[1] - posicion_actual[1]
+        
         if x_obj==0:
             if y_obj>0:
                 valor = np.pi/2
@@ -182,6 +207,7 @@ class Follow_Carrot(object):
         '''if posicion_actual[1]>2:
             print('f161', posicion_actual, valor, objetivo_actual)'''
         return valor
+
 
     def graficar(self): #Grafica e imprime el error cuadratico
         self.longitud = []
@@ -202,12 +228,6 @@ class Follow_Carrot(object):
         esperado = plt.plot(longitud_objetivos, altura_objetivos, c= 'red') #genera el grafico del path
         print(self.error_medio/self.cuenta_total) #Termina de calcular el error cuadratico medio
         plt.show()
-
-
-
-
-
-
 
 
 if __name__ == '__main__':

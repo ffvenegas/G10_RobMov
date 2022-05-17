@@ -22,7 +22,8 @@ class LectorPoses( object ):
     def leer_archivo( self ):
     # Lee lista de poses desde un archivo
         #ruta_poses = join( 'poses.csv' )
-        ruta_poses = '/home/robotica/RoboticaMovil/src/simulador/include/poses1.csv'
+        #ruta_poses = '/home/robotica/RoboticaMovil/src/simulador/include/poses1.csv'
+        ruta_poses = '/home/ffvenegas/ffvenegas_ws/src/lab2/include/poses1.csv'
         
         with open( ruta_poses, 'rt' ) as archivo:
             self.goal_list = archivo.readlines()

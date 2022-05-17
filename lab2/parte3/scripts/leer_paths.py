@@ -12,7 +12,8 @@ sqrt = "path_sqrt.txt"
 
 
 posicion = []
-with open(sys.argv[1]) as f: #lee el archivo
+#with open(sys.argv[1]) as f: #lee el archivo
+with open(line) as f: #lee el archivo
     linea = f.readlines()
     posicion = []
     for i in range(len(linea)):
@@ -21,8 +22,8 @@ with open(sys.argv[1]) as f: #lee el archivo
 
 
 
-def nodo(): #Crea el nodo que manda el path
-    rospy.init_node( 'lectura') 
+def nodo(): # Crea el nodo que publica el path que lee el nodo principal
+    rospy.init_node( 'lectura' ) 
     pub = rospy.Publisher('/goal_list', Path, queue_size=10 )
     r = rospy.Rate(60.0)
     cuenta = 0
